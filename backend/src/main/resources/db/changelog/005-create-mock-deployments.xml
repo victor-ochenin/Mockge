@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="005" author="mockge">
+        <createTable tableName="mock_deployments">
+            <column name="id" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="schema_id" type="uuid">
+                <constraints nullable="false" foreignKeyName="fk_mock_deployments_schema" references="schemas(id)" deleteCascade="true"/>
+            </column>
+            <column name="subdomain" type="varchar(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="status" type="varchar(50)" defaultValue="active">
+                <constraints nullable="false"/>
+            </column>
+            <column name="settings" type="jsonb" defaultValueComputed="'{}'::jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="request_count" type="bigint" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_request_at" type="timestamp">
+                <constraints nullable="true"/>
+            </column>
+            <column name="created_at" type="timestamp" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at" type="timestamp">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_mock_subdomain" tableName="mock_deployments">
+            <column name="subdomain"/>
+        </createIndex>
+        <createIndex indexName="idx_mock_status" tableName="mock_deployments">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
