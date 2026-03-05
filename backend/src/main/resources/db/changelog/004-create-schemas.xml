@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="004" author="mockge">
+        <createTable tableName="schemas">
+            <column name="id" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="project_id" type="uuid">
+                <constraints nullable="false" foreignKeyName="fk_schemas_project" references="projects(id)" deleteCascade="true"/>
+            </column>
+            <column name="version" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="varchar(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="schema_json" type="jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="uuid">
+                <constraints nullable="true" foreignKeyName="fk_schemas_creator" references="users(id)"/>
+            </column>
+            <column name="is_active" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_schemas_project" tableName="schemas">
+            <column name="project_id"/>
+        </createIndex>
+        <createIndex indexName="idx_schemas_active" tableName="schemas">
+            <column name="project_id"/>
+            <column name="is_active"/>
+        </createIndex>
+        <addUniqueConstraint tableName="schemas" columnNames="project_id, version" constraintName="uk_schemas_project_version"/>
+    </changeSet>
+
+</databaseChangeLog>
