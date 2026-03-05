@@ -1,12 +1,10 @@
 package io.mockge.backend.api.dto;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class AuthResponse {
@@ -16,7 +14,6 @@ public class AuthResponse {
     private UserDto user;
 
     @Data
-    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class UserDto {

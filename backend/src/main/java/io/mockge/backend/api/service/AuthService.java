@@ -7,15 +7,14 @@ import io.mockge.backend.api.entity.UserEntity;
 import io.mockge.backend.api.repository.UserRepository;
 import io.mockge.backend.api.security.CustomUserDetails;
 import io.mockge.backend.api.security.JwtUtil;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class AuthService {
 
     private final UserRepository userRepository;
@@ -23,17 +22,24 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
 
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, 
+                       JwtUtil jwtUtil, AuthenticationManager authenticationManager) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
+        this.authenticationManager = authenticationManager;
+    }
+
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("Пользователь с таким email уже существует");
         }
 
-        UserEntity user = UserEntity.builder()
-                .email(request.getEmail())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .name(request.getName())
-                .build();
+        UserEntity user = new UserEntity();
+        user.setEmail(request.getEmail());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setName(request.getName());
 
         userRepository.save(user);
 
@@ -55,16 +61,14 @@ public class AuthService {
     private AuthResponse generateAuthResponse(UserEntity user) {
         UserDetails userDetails = new CustomUserDetails(user);
         String token = jwtUtil.generateToken(userDetails);
-        String refreshToken = jwtUtil.generateToken(userDetails); // В продакшене нужен отдельный refresh токен
+        String refreshToken = jwtUtil.generateToken(userDetails);
 
-        return AuthResponse.builder()
-                .token(token)
-                .refreshToken(refreshToken)
-                .user(AuthResponse.UserDto.builder()
-                        .id(user.getId().toString())
-                        .email(user.getEmail())
-                        .name(user.getName())
-                        .build())
-                .build();
+        AuthResponse.UserDto userDto = new AuthResponse.UserDto(
+                user.getId().toString(),
+                user.getEmail(),
+                user.getName()
+        );
+
+        return new AuthResponse(token, refreshToken, userDto);
     }
 }

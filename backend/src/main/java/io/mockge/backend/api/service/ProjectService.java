@@ -6,7 +6,6 @@ import io.mockge.backend.api.dto.UpdateProjectRequest;
 import io.mockge.backend.api.entity.ProjectEntity;
 import io.mockge.backend.api.entity.UserEntity;
 import io.mockge.backend.api.repository.ProjectRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,11 +14,15 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final UserService userService;
+
+    public ProjectService(ProjectRepository projectRepository, UserService userService) {
+        this.projectRepository = projectRepository;
+        this.userService = userService;
+    }
 
     @Transactional(readOnly = true)
     public List<ProjectDto> findAllByOwnerId(UUID ownerId) {
@@ -32,11 +35,10 @@ public class ProjectService {
     public ProjectDto create(CreateProjectRequest request, UUID ownerId) {
         UserEntity owner = userService.findById(ownerId);
 
-        ProjectEntity project = ProjectEntity.builder()
-                .name(request.getName())
-                .description(request.getDescription())
-                .owner(owner)
-                .build();
+        ProjectEntity project = new ProjectEntity();
+        project.setName(request.getName());
+        project.setDescription(request.getDescription());
+        project.setOwner(owner);
 
         projectRepository.save(project);
         return toDto(project);
@@ -82,13 +84,13 @@ public class ProjectService {
     }
 
     private ProjectDto toDto(ProjectEntity project) {
-        return ProjectDto.builder()
-                .id(project.getId())
-                .name(project.getName())
-                .description(project.getDescription())
-                .ownerId(project.getOwner().getId())
-                .createdAt(project.getCreatedAt())
-                .updatedAt(project.getUpdatedAt())
-                .build();
+        return new ProjectDto(
+                project.getId(),
+                project.getName(),
+                project.getDescription(),
+                project.getOwner().getId(),
+                project.getCreatedAt(),
+                project.getUpdatedAt()
+        );
     }
 }

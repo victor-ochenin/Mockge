@@ -3,18 +3,22 @@ package io.mockge.backend.api.service;
 import io.mockge.backend.api.entity.UserEntity;
 import io.mockge.backend.api.repository.UserRepository;
 import io.mockge.backend.api.security.CustomUserDetails;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Service
-@RequiredArgsConstructor
 public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
+
+    public UserService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -31,7 +35,7 @@ public class UserService implements UserDetailsService {
     }
 
     @Transactional(readOnly = true)
-    public UserEntity findById(java.util.UUID id) {
+    public UserEntity findById(UUID id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден: " + id));
     }

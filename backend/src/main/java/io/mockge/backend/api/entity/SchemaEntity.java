@@ -1,7 +1,8 @@
 package io.mockge.backend.api.entity;
 
+import lombok.Data;
+
 import jakarta.persistence.*;
-import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
 
@@ -10,11 +11,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "schemas")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Data
 public class SchemaEntity {
 
     @Id
@@ -43,7 +40,6 @@ public class SchemaEntity {
     private UserEntity createdBy;
 
     @Column(name = "is_active", nullable = false)
-    @Builder.Default
     private Boolean isActive = false;
 
     @PrePersist

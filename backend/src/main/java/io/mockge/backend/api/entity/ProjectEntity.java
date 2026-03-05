@@ -1,7 +1,8 @@
 package io.mockge.backend.api.entity;
 
+import lombok.Data;
+
 import jakarta.persistence.*;
-import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -10,11 +11,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "projects")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Data
 public class ProjectEntity {
 
     @Id

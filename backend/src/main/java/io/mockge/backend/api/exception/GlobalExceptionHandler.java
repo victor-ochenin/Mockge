@@ -1,7 +1,5 @@
 package io.mockge.backend.api.exception;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -61,11 +59,19 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Внутренняя ошибка сервера", Instant.now()));
     }
 
-    @Data
-    @AllArgsConstructor
     public static class ErrorResponse {
         private final int status;
         private final String message;
         private final Instant timestamp;
+
+        public ErrorResponse(int status, String message, Instant timestamp) {
+            this.status = status;
+            this.message = message;
+            this.timestamp = timestamp;
+        }
+
+        public int getStatus() { return status; }
+        public String getMessage() { return message; }
+        public Instant getTimestamp() { return timestamp; }
     }
 }

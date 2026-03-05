@@ -6,7 +6,6 @@ import io.mockge.backend.api.dto.UpdateProjectRequest;
 import io.mockge.backend.api.security.CustomUserDetails;
 import io.mockge.backend.api.service.ProjectService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -16,10 +15,13 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/projects")
-@RequiredArgsConstructor
 public class ProjectController {
 
     private final ProjectService projectService;
+
+    public ProjectController(ProjectService projectService) {
+        this.projectService = projectService;
+    }
 
     @GetMapping
     public ResponseEntity<List<ProjectDto>> getProjects(@AuthenticationPrincipal CustomUserDetails userDetails) {
