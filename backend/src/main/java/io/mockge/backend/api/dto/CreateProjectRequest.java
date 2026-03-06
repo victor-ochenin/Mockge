@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 @Data
@@ -18,4 +19,8 @@ public class CreateProjectRequest {
 
     @Size(max = 1000, message = "Описание не должно превышать 1000 символов")
     private String description;
+
+    @NotBlank(message = "Поддомен не может быть пустым")
+    @Pattern(regexp = "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$", message = "Поддомен должен содержать только строчные латинские буквы, цифры и дефисы, начинаться и заканчиваться буквой или цифрой")
+    private String subdomain;
 }

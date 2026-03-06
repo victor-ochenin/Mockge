@@ -24,6 +24,9 @@ public class ProjectEntity {
     @Column(columnDefinition = "text")
     private String description;
 
+    @Column(name = "subdomain", nullable = false, unique = true, length = 63)
+    private String subdomain;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private UserEntity owner;

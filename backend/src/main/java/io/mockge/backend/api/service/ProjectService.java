@@ -35,9 +35,14 @@ public class ProjectService {
     public ProjectDto create(CreateProjectRequest request, UUID ownerId) {
         UserEntity owner = userService.findById(ownerId);
 
+        if (projectRepository.existsBySubdomain(request.getSubdomain())) {
+            throw new IllegalArgumentException("Поддомен уже занят");
+        }
+
         ProjectEntity project = new ProjectEntity();
         project.setName(request.getName());
         project.setDescription(request.getDescription());
+        project.setSubdomain(request.getSubdomain());
         project.setOwner(owner);
 
         projectRepository.save(project);
@@ -66,6 +71,12 @@ public class ProjectService {
         if (request.getDescription() != null) {
             project.setDescription(request.getDescription());
         }
+        if (request.getSubdomain() != null && !request.getSubdomain().equals(project.getSubdomain())) {
+            if (projectRepository.existsBySubdomain(request.getSubdomain())) {
+                throw new IllegalArgumentException("Поддомен уже занят");
+            }
+            project.setSubdomain(request.getSubdomain());
+        }
 
         projectRepository.save(project);
         return toDto(project);
@@ -88,6 +99,7 @@ public class ProjectService {
                 project.getId(),
                 project.getName(),
                 project.getDescription(),
+                project.getSubdomain(),
                 project.getOwner().getId(),
                 project.getCreatedAt(),
                 project.getUpdatedAt()
