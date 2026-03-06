@@ -26,14 +26,18 @@ declare module 'fastify' {
 /**
  * Парсит поддомен из hostname
  * project123.mockge.io -> project123
+ * localhost:3000/users -> null (для локальной разработки без схемы)
  */
 function parseSubdomain(hostname: string): string | null {
-  // Игнорируем localhost и IP-адреса
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+  // Удаляем порт из hostname (если есть)
+  const hostWithoutPort = hostname.split(':')[0];
+
+  // Для localhost и 127.0.0.1 возвращаем null - локальная разработка без обязательной схемы
+  if (hostWithoutPort === 'localhost' || hostWithoutPort === '127.0.0.1') {
     return null;
   }
 
-  const parts = hostname.split('.');
+  const parts = hostWithoutPort.split('.');
   if (parts.length >= 2) {
     // Возвращаем первую часть (поддомен)
     return parts[0];
@@ -70,17 +74,18 @@ async function handleMockRequest(
   reply: FastifyReply
 ) {
   const subdomain = request.subdomain;
-  const path = request.url;
+  // Используем pathname без query строки
+  const pathname = new URL(request.url, 'http://localhost').pathname;
   const method = request.method;
+  const host = request.hostname.split(':')[0];
 
-  if (!subdomain) {
-    return reply.status(400).send({
-      error: 'Bad Request',
-      message: 'Subdomain is required. Use format: project123.mockge.io',
-    });
-  }
+  // Проверка на локальную разработку (localhost без схемы)
+  const isLocalhost = host === 'localhost' || host === '127.0.0.1';
 
-  logger.info({ subdomain, path, method }, 'Incoming mock request');
+  // Используем 'localhost' как subdomain для локальных запросов
+  const effectiveSubdomain = subdomain || 'localhost';
+
+  logger.info({ subdomain, effectiveSubdomain, pathname, method, isLocalhost }, 'Incoming mock request');
 
   // Получаем сервис из экземпляра сервера
   const stateService = request.server.mockStateService;
@@ -93,13 +98,70 @@ async function handleMockRequest(
   }
 
   // 1. Получаем схему из Redis
-  const schema = await stateService.getSchema(subdomain);
+  let schema = subdomain ? await stateService.getSchema(subdomain) : null;
+
+  // Для localhost без схемы создаем тестовую схему
+  if (!schema && isLocalhost) {
+    schema = {
+      id: 'localhost_default_schema',
+      name: 'Localhost Default API',
+      entities: [
+        {
+          id: 'entity_user',
+          name: 'User',
+          fields: [
+            { id: 'f1', name: 'id', type: 'uuid', primary: true },
+            { id: 'f2', name: 'email', type: 'email', required: true },
+            { id: 'f3', name: 'name', type: 'string' },
+            { id: 'f4', name: 'age', type: 'number', min: 18, max: 80 },
+          ],
+        },
+        {
+          id: 'entity_product',
+          name: 'Product',
+          fields: [
+            { id: 'f1', name: 'id', type: 'uuid', primary: true },
+            { id: 'f2', name: 'name', type: 'string' },
+            { id: 'f3', name: 'price', type: 'number', min: 1, max: 1000 },
+            { id: 'f4', name: 'description', type: 'string' },
+          ],
+        },
+      ],
+      endpoints: {
+        User: {
+          list: '/users',
+          detail: '/users/:id',
+          create: '/users',
+          update: '/users/:id',
+          delete: '/users/:id',
+        },
+        Product: {
+          list: '/products',
+          detail: '/products/:id',
+          create: '/products',
+          update: '/products/:id',
+          delete: '/products/:id',
+        },
+      },
+      settings: {
+        stateful: true,
+        defaultLatency: 0,
+        errorRate: 0,
+        maxItems: 10,
+      },
+    };
+    logger.info('Using default schema for localhost development');
+  }
 
   if (!schema) {
+    const errorMsg = subdomain
+      ? `Mock server "${subdomain}" not found. Deploy your schema first.`
+      : 'Subdomain is required. Use format: project123.mockge.io or use localhost for development with default schema.';
+    
     logger.warn({ subdomain }, 'Mock server not found');
     return reply.status(404).send({
       error: 'Not Found',
-      message: `Mock server "${subdomain}" not found. Deploy your schema first.`,
+      message: errorMsg,
     });
   }
 
@@ -112,8 +174,8 @@ async function handleMockRequest(
   // 3. Имитация ошибок
   const errorRate = schema.settings?.errorRate || 0;
   if (Math.random() < errorRate) {
-    await stateService.incrementErrorCount(subdomain);
-    logger.warn({ subdomain }, 'Simulated error');
+    await stateService.incrementErrorCount(effectiveSubdomain);
+    logger.warn({ subdomain: effectiveSubdomain }, 'Simulated error');
     return reply.status(500).send({
       error: 'Internal Server Error',
       message: 'Simulated error based on errorRate setting',
@@ -121,7 +183,7 @@ async function handleMockRequest(
   }
 
   // 4. Парсим путь для определения сущности и ID
-  const pathParts = path.split('/').filter(Boolean);
+  const pathParts = pathname.split('/').filter(Boolean);
   const entityName = pathParts[0];
   const id = pathParts[1];
 
@@ -149,7 +211,7 @@ async function handleMockRequest(
       if (id) {
         // GET /users/:id - одна сущность
         if (schema.settings?.stateful) {
-          data = await stateService.getById(subdomain, entity.name, id);
+          data = await stateService.getById(effectiveSubdomain, entity.name, id);
           if (!data) {
             return reply.status(404).send({
               error: 'Not Found',
@@ -164,20 +226,36 @@ async function handleMockRequest(
         // GET /users - список сущностей
         const stateful = schema.settings?.stateful;
         if (stateful) {
-          data = await stateService.getState(subdomain, entity.name);
-        }
-
-        // Если состояние пустое или не stateful, генерируем данные
-        if (!data || (Array.isArray(data) && data.length === 0)) {
-          const count = schema.settings?.maxItems || 10;
-          data = generateEntityArray(entity, count);
+          data = await stateService.getState(effectiveSubdomain, entity.name);
         }
 
         // Поддержка пагинации
-        const page = parseInt((request.query as Record<string, string>).page || '1', 10);
-        const limit = parseInt((request.query as Record<string, string>).limit || '10', 10);
+        const query = request.query as Record<string, string>;
+        logger.info({ query }, 'Query params');
+        const page = parseInt(query.page || query._page || '1', 10);
+        const limit = parseInt(query.limit || query._limit || '10', 10);
 
-        if (Array.isArray(data)) {
+        // Если состояние пустое или не stateful, генерируем данные с учетом пагинации
+        if (!data || (Array.isArray(data) && data.length === 0)) {
+          const total = schema.settings?.maxItems || 10;
+          // Генерируем только нужное количество элементов для текущей страницы
+          const count = Math.min(limit, total - (page - 1) * limit);
+          if (count > 0) {
+            data = generateEntityArray(entity, count);
+          } else {
+            data = [];
+          }
+          data = {
+            data: data,
+            pagination: {
+              page,
+              limit,
+              total,
+            },
+          };
+        } else if (Array.isArray(data)) {
+          // Если данные есть в state, применяем пагинацию
+          const total = data.length;
           const start = (page - 1) * limit;
           const end = start + limit;
           data = {
@@ -185,7 +263,7 @@ async function handleMockRequest(
             pagination: {
               page,
               limit,
-              total: data.length,
+              total,
             },
           };
         }
@@ -201,7 +279,7 @@ async function handleMockRequest(
       };
 
       if (schema.settings?.stateful) {
-        await stateService.addToState(subdomain, entity.name, newItem);
+        await stateService.addToState(effectiveSubdomain, entity.name, newItem);
       }
 
       data = newItem;
@@ -217,7 +295,7 @@ async function handleMockRequest(
 
       const body = request.body as Record<string, unknown>;
       const updated = await stateService.updateInState(
-        subdomain,
+        effectiveSubdomain,
         entity.name,
         id,
         { ...body, updatedAt: new Date().toISOString() }
@@ -240,7 +318,7 @@ async function handleMockRequest(
         });
       }
 
-      const deleted = await stateService.deleteFromState(subdomain, entity.name, id);
+      const deleted = await stateService.deleteFromState(effectiveSubdomain, entity.name, id);
 
       if (!deleted) {
         return reply.status(404).send({
@@ -258,12 +336,12 @@ async function handleMockRequest(
     }
 
     // 6. Инкрементируем счётчик запросов
-    await stateService.incrementRequestCount(subdomain);
+    await stateService.incrementRequestCount(effectiveSubdomain);
 
     // 7. Отправляем ответ
     return reply.send(data);
   } catch (error) {
-    logger.error({ error, subdomain, path }, 'Error processing mock request');
+    logger.error({ error, subdomain: effectiveSubdomain, pathname }, 'Error processing mock request');
     return reply.status(500).send({
       error: 'Internal Server Error',
       message: 'Error processing request',
@@ -277,6 +355,14 @@ async function handleMockRequest(
 export async function createServer(mockStateService?: MockStateService): Promise<FastifyInstance> {
   const server = Fastify({
     logger: true,
+    querystringParser: (str: string) => {
+      const parsed = new URLSearchParams(str);
+      const obj: Record<string, string> = {};
+      for (const [key, value] of parsed.entries()) {
+        obj[key] = value;
+      }
+      return obj;
+    },
   });
 
   // Добавляем сервис в экземпляр сервера
