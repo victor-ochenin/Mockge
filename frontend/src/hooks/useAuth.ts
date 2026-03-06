@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { User } from '../types';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
-    
+
     if (token && savedUser) {
       try {
         setUser(JSON.parse(savedUser));
@@ -30,6 +32,7 @@ export function useAuth() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+    navigate('/login');
   };
 
   return { user, isLoading, login, logout };
