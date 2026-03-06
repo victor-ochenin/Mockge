@@ -5,10 +5,10 @@ export interface User {
 }
 
 export interface Project {
-  id: number;
+  id: string;
   name: string;
   subdomain: string;
-  description?: string;
+  description: string;
   createdAt: string;
 }
 

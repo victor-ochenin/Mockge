@@ -33,7 +33,7 @@ export const projectsApi = {
     const response = await api.post<Project>('/projects', { name, subdomain, description });
     return response.data;
   },
-  delete: async (id: number): Promise<void> => {
+  delete: async (id: string): Promise<void> => {
     await api.delete(`/projects/${id}`);
   },
 };

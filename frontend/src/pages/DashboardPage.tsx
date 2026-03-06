@@ -44,7 +44,7 @@ export function DashboardPage() {
     }
   };
 
-  const handleDeleteProject = async (id: number) => {
+  const handleDeleteProject = async (id: string) => {
     if (!confirm('Вы уверены, что хотите удалить проект?')) return;
     try {
       await projectsApi.delete(id);
@@ -106,8 +106,12 @@ export function DashboardPage() {
                     value={newProjectName}
                     onChange={(e) => setNewProjectName(e.target.value)}
                     required
+                    minLength={2}
+                    maxLength={200}
+                    placeholder="Название проекта"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   />
+                  <p className="mt-1 text-xs text-gray-500">От 2 до 200 символов</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -118,10 +122,14 @@ export function DashboardPage() {
                     value={newProjectSubdomain}
                     onChange={(e) => setNewProjectSubdomain(e.target.value)}
                     required
-                    pattern="[a-z0-9-]+"
-                    title="Только строчные буквы, цифры и дефисы"
+                    minLength={3}
+                    maxLength={63}
+                    pattern="^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$"
+                    placeholder="myproject"
+                    title="Только строчные латинские буквы, цифры и дефисы. Должен начинаться и заканчиваться буквой или цифрой"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   />
+                  <p className="mt-1 text-xs text-gray-500">3-63 символов, латиница, цифры и дефисы</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -130,9 +138,12 @@ export function DashboardPage() {
                   <textarea
                     value={newProjectDescription}
                     onChange={(e) => setNewProjectDescription(e.target.value)}
+                    maxLength={1000}
+                    placeholder="Опишите ваш проект"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                     rows={3}
                   />
+                  <p className="mt-1 text-xs text-gray-500">Максимум 1000 символов</p>
                 </div>
                 <div className="flex space-x-3">
                   <button
@@ -181,7 +192,7 @@ export function DashboardPage() {
                 <p className="text-sm text-gray-500 mb-2">
                   {project.subdomain}.mockge.local
                 </p>
-                {project.description && (
+                {project.description && project.description.trim() !== '' && (
                   <p className="text-sm text-gray-600 mb-4">{project.description}</p>
                 )}
                 <div className="text-xs text-gray-400">
