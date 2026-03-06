@@ -15,6 +15,7 @@ public class ProjectDto {
     private UUID id;
     private String name;
     private String description;
+    private String subdomain;
     private UUID ownerId;
     private Instant createdAt;
     private Instant updatedAt;

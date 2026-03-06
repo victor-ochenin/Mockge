@@ -12,4 +12,5 @@ import java.util.UUID;
 public interface ProjectRepository extends JpaRepository<ProjectEntity, UUID> {
     List<ProjectEntity> findByOwnerId(UUID ownerId);
     List<ProjectEntity> findByOwner(UserEntity owner);
+    boolean existsBySubdomain(String subdomain);
 }
