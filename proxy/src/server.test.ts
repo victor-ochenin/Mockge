@@ -107,8 +107,8 @@ describe('Integration Tests', () => {
     });
   });
 
-  describe('Mock Server - без поддомена', () => {
-    it('должен возвращать 400 для localhost без поддомена', async () => {
+  describe('Mock Server - локальная разработка (localhost)', () => {
+    it('должен возвращать список пользователей для localhost с дефолтной схемой', async () => {
       const response = await server.inject({
         method: 'GET',
         url: '/users',
@@ -117,7 +117,72 @@ describe('Integration Tests', () => {
         },
       });
 
-      expect(response.statusCode).toBe(400);
+      // localhost теперь использует дефолтную схему для разработки
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body).toHaveProperty('data');
+      expect(body).toHaveProperty('pagination');
+    });
+
+    it('должен возвращать список продуктов для localhost', async () => {
+      const response = await server.inject({
+        method: 'GET',
+        url: '/products',
+        headers: {
+          host: 'localhost',
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body).toHaveProperty('data');
+    });
+
+    it('должен работать с localhost после сохранения схемы для default (приоритет пользовательской схемы)', async () => {
+      // Сохраняем схему для 'default' поддомена
+      const defaultSchema: Schema = {
+        id: 'default_schema',
+        name: 'Default API',
+        entities: [
+          {
+            id: 'entity_user',
+            name: 'User',
+            fields: [
+              { id: 'f1', name: 'id', type: 'uuid', primary: true },
+              { id: 'f2', name: 'email', type: 'email', required: true },
+              { id: 'f3', name: 'name', type: 'string' },
+            ],
+          },
+        ],
+        endpoints: {
+          User: {
+            list: '/users',
+            detail: '/users/:id',
+            create: '/users',
+            update: '/users/:id',
+            delete: '/users/:id',
+          },
+        },
+        settings: {
+          stateful: true,
+          defaultLatency: 0,
+          errorRate: 0,
+        },
+      };
+
+      await mockStateService.saveSchema('default', defaultSchema);
+
+      const response = await server.inject({
+        method: 'GET',
+        url: '/users',
+        headers: {
+          host: 'localhost',
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body).toHaveProperty('data');
     });
   });
 
