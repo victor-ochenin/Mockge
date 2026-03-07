@@ -4,12 +4,13 @@ const api = axios.create({
   baseURL: '/api',
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+// Токен будет устанавливаться перед каждым запросом через useAuth
+export function setAuthToken(token: string | null) {
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common.Authorization;
   }
-  return config;
-});
+}
 
 export default api;

@@ -6,7 +6,7 @@ import type { Project } from '../types';
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, getToken, isLoaded } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,14 +16,31 @@ export function DashboardPage() {
   const [newProjectDescription, setNewProjectDescription] = useState('');
 
   useEffect(() => {
-    loadProjects();
-  }, []);
+    console.log('[DashboardPage] user:', user, 'isLoaded:', isLoaded);
+    
+    // Если пользователь не вошёл, перенаправляем на login
+    if (isLoaded && !user) {
+      console.log('[DashboardPage] User not signed in, redirecting to /login');
+      navigate('/login');
+    }
+  }, [user, isLoaded, navigate]);
+
+  useEffect(() => {
+    if (user && isLoaded) {
+      loadProjects();
+    }
+  }, [user, isLoaded]);
 
   const loadProjects = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await projectsApi.getAll();
+      const token = await getToken();
+      if (!token) {
+        setError('Не удалось получить токен авторизации');
+        return;
+      }
+      const data = await projectsApi.getAll(token);
       setProjects(data);
     } catch {
       setError('Не удалось загрузить проекты');
@@ -34,8 +51,13 @@ export function DashboardPage() {
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
+    const token = await getToken();
+    if (!token) {
+      setError('Не удалось получить токен авторизации');
+      return;
+    }
     try {
-      await projectsApi.create(newProjectName, newProjectSubdomain, newProjectDescription || undefined);
+      await projectsApi.create(token, newProjectName, newProjectSubdomain, newProjectDescription || undefined);
       setNewProjectName('');
       setNewProjectSubdomain('');
       setNewProjectDescription('');
@@ -48,13 +70,27 @@ export function DashboardPage() {
 
   const handleDeleteProject = async (id: string) => {
     if (!confirm('Вы уверены, что хотите удалить проект?')) return;
+    const token = await getToken();
+    if (!token) {
+      setError('Не удалось получить токен авторизации');
+      return;
+    }
     try {
-      await projectsApi.delete(id);
+      await projectsApi.delete(token, id);
       loadProjects();
     } catch {
       setError('Не удалось удалить проект');
     }
   };
+
+  // Показываем загрузку пока Clerk не загрузился
+  if (!isLoaded || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -65,7 +101,7 @@ export function DashboardPage() {
               <h1 className="text-xl font-bold text-gray-800">Mockge Dashboard</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">{user?.name}</span>
+              <span className="text-sm text-gray-600">{user?.fullName || user?.primaryEmailAddress?.emailAddress}</span>
               <button
                 onClick={logout}
                 className="text-sm text-red-600 hover:text-red-700"
@@ -126,7 +162,7 @@ export function DashboardPage() {
                     required
                     minLength={3}
                     maxLength={63}
-                    pattern="^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$"
+                    pattern="[a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9]"
                     placeholder="myproject"
                     title="Только строчные латинские буквы, цифры и дефисы. Должен начинаться и заканчиваться буквой или цифрой"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"

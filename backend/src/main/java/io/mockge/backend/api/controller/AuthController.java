@@ -1,30 +1,41 @@
 package io.mockge.backend.api.controller;
 
-import io.mockge.backend.api.dto.AuthRequest;
 import io.mockge.backend.api.dto.AuthResponse;
-import io.mockge.backend.api.dto.RegisterRequest;
-import io.mockge.backend.api.service.AuthService;
-import jakarta.validation.Valid;
+import io.mockge.backend.api.entity.UserEntity;
+import io.mockge.backend.api.service.UserService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final AuthService authService;
+    private final UserService userService;
 
-    public AuthController(AuthService authService) {
-        this.authService = authService;
+    public AuthController(UserService userService) {
+        this.userService = userService;
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(authService.register(request));
-    }
+    /**
+     * Возвращает информацию о текущем пользователе
+     * Используется для синхронизации состояния после входа через Clerk
+     */
+    @GetMapping("/me")
+    public ResponseEntity<AuthResponse> getCurrentUser(@AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).build();
+        }
 
-    @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+        UserEntity user = userService.findByEmail(userDetails.getUsername());
+
+        AuthResponse.UserDto userDto = new AuthResponse.UserDto(
+                user.getId().toString(),
+                user.getEmail(),
+                user.getName()
+        );
+
+        return ResponseEntity.ok(new AuthResponse(null, null, userDto));
     }
 }
