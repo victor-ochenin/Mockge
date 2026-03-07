@@ -19,13 +19,16 @@ public class DeploymentService {
     private final DeploymentRepository deploymentRepository;
     private final SchemaRepository schemaRepository;
     private final ObjectMapper objectMapper;
+    private final RedisService redisService;
 
     public DeploymentService(DeploymentRepository deploymentRepository,
                              SchemaRepository schemaRepository,
-                             ObjectMapper objectMapper) {
+                             ObjectMapper objectMapper,
+                             RedisService redisService) {
         this.deploymentRepository = deploymentRepository;
         this.schemaRepository = schemaRepository;
         this.objectMapper = objectMapper;
+        this.redisService = redisService;
     }
 
     @Transactional
@@ -48,6 +51,15 @@ public class DeploymentService {
         }
 
         deploymentRepository.save(deployment);
+
+        // Публикуем схему в Redis для прокси-сервера
+        try {
+            Object schemaJson = objectMapper.readValue(schema.getSchemaJson(), Object.class);
+            redisService.publishSchema(request.getSubdomain(), schemaJson);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Ошибка публикации схемы в Redis", e);
+        }
+
         return toDto(deployment);
     }
 
@@ -64,7 +76,7 @@ public class DeploymentService {
         dto.setSchemaId(deployment.getSchema().getId());
         dto.setSubdomain(deployment.getSubdomain());
         dto.setStatus(deployment.getStatus());
-        dto.setUrl("https://" + deployment.getSubdomain() + ".mockge.io");
+        dto.setUrl("http://" + deployment.getSubdomain() + ".mockge.local:3000");
         dto.setCreatedAt(deployment.getCreatedAt());
         return dto;
     }

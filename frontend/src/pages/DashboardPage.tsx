@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { projectsApi } from '../api';
 import type { Project } from '../types';
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -197,6 +199,22 @@ export function DashboardPage() {
                 )}
                 <div className="text-xs text-gray-400">
                   Создан: {new Date(project.createdAt).toLocaleDateString('ru-RU')}
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={() => navigate(`/projects/${project.id}/editor`)}
+                    className="flex-1 bg-blue-500 text-white text-sm py-2 px-3 rounded hover:bg-blue-600 transition"
+                  >
+                    ✏️ Редактор
+                  </button>
+                  <a
+                    href={`http://${project.subdomain}.mockge.local:3000`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 bg-green-500 text-white text-sm py-2 px-3 rounded hover:bg-green-600 transition text-center"
+                  >
+                    🚀 Мок
+                  </a>
                 </div>
               </div>
             ))}

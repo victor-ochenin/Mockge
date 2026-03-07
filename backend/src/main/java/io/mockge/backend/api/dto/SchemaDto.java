@@ -1,59 +1,72 @@
 package io.mockge.backend.api.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class SchemaDto {
 
     private UUID id;
     private UUID projectId;
     private String name;
     private Integer version;
-    private List<EntityDto> entities;
-    private SettingsDto settings;
+    private Object schemaJson;
     private Boolean isActive;
     private Instant createdAt;
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class EntityDto {
-        private String id;
-        private String name;
-        private List<FieldDto> fields;
+    public UUID getId() {
+        return id;
     }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class FieldDto {
-        private String id;
-        private String name;
-        private String type;
-        private Boolean primary;
-        private Boolean generated;
-        private Boolean required;
-        private String faker;
-        private Integer min;
-        private Integer max;
+    public void setId(UUID id) {
+        this.id = id;
     }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class SettingsDto {
-        private Integer defaultLatency;
-        private Double errorRate;
-        private Boolean stateful;
-        private Integer maxItems;
+    public UUID getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(UUID projectId) {
+        this.projectId = projectId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Integer getVersion() {
+        return version;
+    }
+
+    public void setVersion(Integer version) {
+        this.version = version;
+    }
+
+    public Object getSchemaJson() {
+        return schemaJson;
+    }
+
+    public void setSchemaJson(Object schemaJson) {
+        this.schemaJson = schemaJson;
+    }
+
+    public Boolean getIsActive() {
+        return isActive;
+    }
+
+    public void setIsActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
     }
 }
