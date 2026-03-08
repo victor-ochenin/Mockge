@@ -1,4 +1,3 @@
-import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 interface PrivateRouteProps {
@@ -17,7 +16,7 @@ export function PrivateRoute({ children }: PrivateRouteProps) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return null;
   }
 
   return <>{children}</>;

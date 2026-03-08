@@ -55,10 +55,8 @@ public class SchemaService {
 
         UserEntity user = userService.findById(userId);
 
-        // Получаем следующую версию
-        int nextVersion = schemaRepository.findByProjectIdAndIsActive(projectId, true)
-                .map(s -> s.getVersion() + 1)
-                .orElse(1);
+        // Получаем следующую версию как максимальную + 1
+        int nextVersion = schemaRepository.findMaxVersionByProjectId(projectId) + 1;
 
         SchemaEntity schema = new SchemaEntity();
         schema.setProject(project);
@@ -69,7 +67,7 @@ public class SchemaService {
 
         // Сохраняем схему как JSON
         try {
-            String schemaJson = objectMapper.writeValueAsString(request);
+            String schemaJson = objectMapper.writeValueAsString(request.getSchemaJson());
             schema.setSchemaJson(schemaJson);
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("Ошибка сериализации схемы", e);
@@ -99,6 +97,9 @@ public class SchemaService {
         schema.setIsActive(true);
         schemaRepository.save(schema);
 
+        // Удаляем старые неактивные схемы этого проекта
+        schemaRepository.deleteInactiveByProjectId(schema.getProject().getId());
+
         return toDto(schema);
     }
 
@@ -106,13 +107,14 @@ public class SchemaService {
     public SchemaDto findActiveByProjectId(UUID projectId) {
         return schemaRepository.findByProjectIdAndIsActive(projectId, true)
                 .map(this::toDto)
-                .orElseThrow(() -> new IllegalArgumentException("Активная схема не найдена"));
+                .orElse(null);
     }
 
     private SchemaDto toDto(SchemaEntity schema) {
         SchemaDto dto = new SchemaDto();
         dto.setId(schema.getId());
         dto.setProjectId(schema.getProject().getId());
+        dto.setProjectSubdomain(schema.getProject().getSubdomain());
         dto.setName(schema.getName());
         dto.setVersion(schema.getVersion());
         dto.setIsActive(schema.getIsActive());
@@ -120,39 +122,8 @@ public class SchemaService {
 
         // Парсим JSON схему
         try {
-            CreateSchemaRequest request = objectMapper.readValue(schema.getSchemaJson(), CreateSchemaRequest.class);
-            dto.setEntities(request.getEntities().stream()
-                    .map(e -> {
-                        SchemaDto.EntityDto entityDto = new SchemaDto.EntityDto();
-                        entityDto.setId(e.getId());
-                        entityDto.setName(e.getName());
-                        entityDto.setFields(e.getFields().stream()
-                                .map(f -> {
-                                    SchemaDto.FieldDto fieldDto = new SchemaDto.FieldDto();
-                                    fieldDto.setId(f.getId());
-                                    fieldDto.setName(f.getName());
-                                    fieldDto.setType(f.getType());
-                                    fieldDto.setPrimary(f.getPrimary());
-                                    fieldDto.setGenerated(f.getGenerated());
-                                    fieldDto.setRequired(f.getRequired());
-                                    fieldDto.setFaker(f.getFaker());
-                                    fieldDto.setMin(f.getMin());
-                                    fieldDto.setMax(f.getMax());
-                                    return fieldDto;
-                                })
-                                .collect(Collectors.toList()));
-                        return entityDto;
-                    })
-                    .collect(Collectors.toList()));
-
-            if (request.getSettings() != null) {
-                SchemaDto.SettingsDto settingsDto = new SchemaDto.SettingsDto();
-                settingsDto.setDefaultLatency(request.getSettings().getDefaultLatency());
-                settingsDto.setErrorRate(request.getSettings().getErrorRate());
-                settingsDto.setStateful(request.getSettings().getStateful());
-                settingsDto.setMaxItems(request.getSettings().getMaxItems());
-                dto.setSettings(settingsDto);
-            }
+            Object schemaObj = objectMapper.readValue(schema.getSchemaJson(), Object.class);
+            dto.setSchemaJson(schemaObj);
         } catch (JsonProcessingException e) {
             // Игнорируем ошибки парсинга для существующих записей
         }

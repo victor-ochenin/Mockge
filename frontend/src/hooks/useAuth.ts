@@ -1,39 +1,24 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import type { User } from '../types';
+import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const navigate = useNavigate();
+  const { user, isLoaded } = useUser();
+  const { getToken, signOut, isSignedIn } = useClerkAuth();
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-
-    if (token && savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
-    }
-    setIsLoading(false);
-  }, []);
-
-  const login = (userData: User, token: string) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
+  const logout = async () => {
+    await signOut();
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-    navigate('/login');
+  const getTokenAsync = async (): Promise<string | null> => {
+    if (!user) return null;
+    return getToken({ template: 'mockge-backend' });
   };
 
-  return { user, isLoading, login, logout };
+  return {
+    user,
+    isLoading: !isLoaded,
+    isLoaded,
+    isSignedIn,
+    logout,
+    getToken: getTokenAsync,
+  };
 }

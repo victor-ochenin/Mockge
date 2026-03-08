@@ -1,1 +1,17 @@
 @import "tailwindcss";
+
+/* Разрешаем перетаскивание узлов React Flow */
+.react-flow__node {
+  cursor: grab;
+}
+
+.react-flow__node:active {
+  cursor: grabbing;
+}
+
+/* Отключаем выделение текста при перетаскивании */
+.react-flow__node {
+  user-select: none;
+  -webkit-user-select: none;
+}
+

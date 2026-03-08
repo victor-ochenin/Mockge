@@ -11,5 +11,6 @@
     <include file="db/changelog/004-create-schemas.xml"/>
     <include file="db/changelog/005-create-mock-deployments.xml"/>
     <include file="db/changelog/006-add-subdomain-to-projects.xml"/>
+    <include file="db/changelog/007-add-clerk-id-to-users.xml"/>
 
 </databaseChangeLog>

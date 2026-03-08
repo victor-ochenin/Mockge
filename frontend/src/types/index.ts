@@ -1,8 +1,4 @@
-export interface User {
-  id: number;
-  email: string;
-  name: string;
-}
+// Типы для Mockge проекта
 
 export interface Project {
   id: string;
@@ -12,18 +8,12 @@ export interface Project {
   createdAt: string;
 }
 
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface RegisterRequest {
-  email: string;
-  password: string;
-  name: string;
-}
-
 export interface AuthResponse {
-  token: string;
-  user: User;
+  token: string | null;
+  refreshToken: string | null;
+  user: {
+    id: string;
+    email: string;
+    name: string | null;
+  };
 }

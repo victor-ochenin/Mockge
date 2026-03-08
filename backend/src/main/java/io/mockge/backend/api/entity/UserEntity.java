@@ -27,6 +27,9 @@ public class UserEntity {
     @Column(name = "name")
     private String name;
 
+    @Column(name = "clerk_id", unique = true)
+    private String clerkId;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

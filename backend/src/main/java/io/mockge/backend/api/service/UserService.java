@@ -2,13 +2,14 @@ package io.mockge.backend.api.service;
 
 import io.mockge.backend.api.entity.UserEntity;
 import io.mockge.backend.api.repository.UserRepository;
-import io.mockge.backend.api.security.CustomUserDetails;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.UUID;
 
 @Service
@@ -25,7 +26,12 @@ public class UserService implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден: " + email));
-        return new CustomUserDetails(user);
+        
+        return new User(
+                user.getEmail(),
+                "",
+                Collections.emptyList()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -38,5 +44,16 @@ public class UserService implements UserDetailsService {
     public UserEntity findById(UUID id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден: " + id));
+    }
+
+    @Transactional(readOnly = true)
+    public UserEntity findByClerkIdOrEmail(String clerkIdOrEmail) {
+        // Сначала ищем по clerk_id
+        UserEntity user = userRepository.findByClerkId(clerkIdOrEmail).orElse(null);
+        if (user != null) {
+            return user;
+        }
+        // Если не нашли, ищем по email
+        return userRepository.findByEmail(clerkIdOrEmail).orElse(null);
     }
 }
