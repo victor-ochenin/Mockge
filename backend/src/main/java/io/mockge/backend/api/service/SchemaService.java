@@ -114,6 +114,7 @@ public class SchemaService {
         SchemaDto dto = new SchemaDto();
         dto.setId(schema.getId());
         dto.setProjectId(schema.getProject().getId());
+        dto.setProjectSubdomain(schema.getProject().getSubdomain());
         dto.setName(schema.getName());
         dto.setVersion(schema.getVersion());
         dto.setIsActive(schema.getIsActive());

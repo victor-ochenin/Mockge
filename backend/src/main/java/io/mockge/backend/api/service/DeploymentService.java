@@ -45,7 +45,8 @@ public class DeploymentService {
 
         logger.info("Found schema: {} with project: {}", schemaId, schema.getProject().getId());
 
-        // Очищаем все старые деплои этого проекта из Redis
+        // Очищаем ВСЕ старые схемы проекта из Redis перед деплоем новой
+        // Находим все деплои проекта и удаляем их ключи из Redis
         List<DeploymentEntity> oldDeployments = deploymentRepository.findByProjectId(schema.getProject().getId());
         for (DeploymentEntity oldDeployment : oldDeployments) {
             logger.info("Cleaning old deployment from Redis: subdomain={}", oldDeployment.getSubdomain());
@@ -53,12 +54,16 @@ public class DeploymentService {
         }
         if (!oldDeployments.isEmpty()) {
             logger.info("Cleaned {} old deployments from Redis", oldDeployments.size());
+        } else {
+            logger.info("No old deployments to clean for project: {}", schema.getProject().getId());
         }
 
         DeploymentEntity deployment = new DeploymentEntity();
         deployment.setSchema(schema);
         deployment.setSubdomain(request.getSubdomain());
         deployment.setStatus("active");
+
+        logger.info("Deploying with subdomain: {}", request.getSubdomain());
 
         // Устанавливаем настройки по умолчанию или из запроса
         if (request.getSettings() != null) {

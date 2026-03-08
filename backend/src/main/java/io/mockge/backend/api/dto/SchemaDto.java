@@ -8,6 +8,7 @@ public class SchemaDto {
 
     private UUID id;
     private UUID projectId;
+    private String projectSubdomain;
     private String name;
     private Integer version;
     private Object schemaJson;
@@ -28,6 +29,14 @@ public class SchemaDto {
 
     public void setProjectId(UUID projectId) {
         this.projectId = projectId;
+    }
+
+    public String getProjectSubdomain() {
+        return projectSubdomain;
+    }
+
+    public void setProjectSubdomain(String projectSubdomain) {
+        this.projectSubdomain = projectSubdomain;
     }
 
     public String getName() {

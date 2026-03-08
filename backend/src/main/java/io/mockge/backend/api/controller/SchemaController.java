@@ -120,12 +120,22 @@ public class SchemaController {
         if (userDetails == null) {
             return ResponseEntity.status(401).build();
         }
+        
+        // Получаем схему чтобы найти проект и его subdomain
+        SchemaDto schema = schemaService.findById(schemaId);
+        if (schema == null) {
+            return ResponseEntity.status(404).build();
+        }
+        
         if (request == null) {
             request = new DeploySchemaRequest();
         }
+        
+        // Используем subdomain проекта - это гарантирует 1 ключ в Redis на проект
         if (request.getSubdomain() == null) {
-            request.setSubdomain("mock-" + schemaId.toString().substring(0, 8));
+            request.setSubdomain(schema.getProjectSubdomain());
         }
+        
         DeploymentDto deployment = deploymentService.deploy(schemaId, request);
         return ResponseEntity.ok(deployment);
     }
