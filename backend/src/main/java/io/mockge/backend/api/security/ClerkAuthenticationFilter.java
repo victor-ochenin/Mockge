@@ -8,6 +8,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -27,6 +29,8 @@ import java.util.Collections;
  */
 @Component
 public class ClerkAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger logger = LoggerFactory.getLogger(ClerkAuthenticationFilter.class);
 
     private final ClerkService clerkService;
     private final UserRepository userRepository;
@@ -57,6 +61,10 @@ public class ClerkAuthenticationFilter extends OncePerRequestFilter {
 
             if (claims != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 String email = clerkService.extractEmail(claims);
+                String sub = claims.getSubject();
+                
+                logger.debug("Clerk claims - email: {}, sub: {}, all claims: {}", 
+                    email, sub, claims);
 
                 if (email != null) {
                     // Находим или создаём пользователя в нашей БД
@@ -76,8 +84,8 @@ public class ClerkAuthenticationFilter extends OncePerRequestFilter {
                     );
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
-                    
-                    logger.debug("Successfully authenticated user: " + email);
+
+                    logger.debug("Successfully authenticated user: {}", email);
                 }
             }
         } catch (Exception e) {
@@ -91,14 +99,31 @@ public class ClerkAuthenticationFilter extends OncePerRequestFilter {
     /**
      * Находит пользователя в БД или создаёт нового на основе данных из Clerk
      */
-    private UserEntity findOrCreateUser(Claims claims, String email) {
-        return userRepository.findByEmail(email)
-                .orElseGet(() -> {
-                    UserEntity newUser = new UserEntity();
-                    newUser.setEmail(email);
-                    newUser.setName(clerkService.extractName(claims));
-                    newUser.setPasswordHash(""); // Пароль не нужен, т.к. аутентификация через Clerk
-                    return userRepository.save(newUser);
-                });
+    private UserEntity findOrCreateUser(Claims claims, String emailFromClaims) {
+        String clerkId = claims.getSubject();
+        
+        // Сначала ищем по clerk_id (это надёжнее)
+        if (clerkId != null) {
+            UserEntity existingUser = userRepository.findByClerkId(clerkId).orElse(null);
+            if (existingUser != null) {
+                return existingUser;
+            }
+        }
+        
+        // Если не нашли по clerk_id, ищем по email
+        if (emailFromClaims != null) {
+            UserEntity existingUser = userRepository.findByEmail(emailFromClaims).orElse(null);
+            if (existingUser != null) {
+                return existingUser;
+            }
+        }
+        
+        // Создаём нового пользователя
+        UserEntity newUser = new UserEntity();
+        newUser.setEmail(emailFromClaims != null ? emailFromClaims : clerkId);
+        newUser.setName(clerkService.extractName(claims));
+        newUser.setPasswordHash(""); // Пароль не нужен, т.к. аутентификация через Clerk
+        newUser.setClerkId(clerkId);
+        return userRepository.save(newUser);
     }
 }

@@ -10,6 +10,7 @@ import ReactFlow, {
   type NodeTypes,
   applyNodeChanges,
   applyEdgeChanges,
+  type OnSelectionChangeParams,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import type { SchemaField } from '../../store/schemaStore';
@@ -36,7 +37,13 @@ export function Editor() {
 
   const onNodesChange = useCallback(
     (changes: any[]) => {
-      applyNodeChanges(changes, nodes);
+      // Применяем изменения позиций через applyNodeChanges
+      const newNodes = applyNodeChanges(changes, nodes);
+      
+      // Обновляем store с новыми позициями
+      useSchemaStore.getState().setNodes(newNodes);
+
+      // Также обновляем позиции через updateNode для консистивности
       changes.forEach((change) => {
         if (change.type === 'position' && change.position) {
           useSchemaStore.getState().updateNode(change.id, {
@@ -90,6 +97,27 @@ export function Editor() {
     setSelectedNode(null);
   }, [setSelectedNode]);
 
+  const onNodeDragStart = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      // Сбрасываем выделение других узлов при начале перетаскивания
+      // Это гарантирует, что перетаскивается только один узел
+      setSelectedNode(node.id);
+    },
+    [setSelectedNode]
+  );
+
+  const onSelectionChange = useCallback(
+    ({ nodes: selectedNodes }: OnSelectionChangeParams) => {
+      // Разрешаем выделение только одного узла
+      if (selectedNodes && selectedNodes.length > 0) {
+        setSelectedNode(selectedNodes[0].id);
+      } else {
+        setSelectedNode(null);
+      }
+    },
+    [setSelectedNode]
+  );
+
   // Обработчики для EntityNode
   const handleAddField = useCallback(
     (nodeId: string) => {
@@ -122,6 +150,7 @@ export function Editor() {
   // Добавляем обработчики в данные узлов
   const nodesWithHandlers = nodes.map((node) => ({
     ...node,
+    draggable: true,
     data: {
       ...node.data,
       onAddField: () => handleAddField(node.id),
@@ -146,12 +175,18 @@ export function Editor() {
           onConnect={onConnect}
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
+          onNodeDragStart={onNodeDragStart}
+          onSelectionChange={onSelectionChange}
           nodeTypes={nodeTypes}
           fitView
           snapToGrid
           snapGrid={[15, 15]}
           minZoom={0.5}
           maxZoom={2}
+          deleteKeyCode={['Backspace', 'Delete']}
+          selectNodesOnDrag={true}
+          multiSelectionKeyCode={null}
+          nodesDraggable={true}
         >
           <Controls />
           <MiniMap

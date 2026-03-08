@@ -8,13 +8,18 @@ import io.mockge.backend.api.entity.DeploymentEntity;
 import io.mockge.backend.api.entity.SchemaEntity;
 import io.mockge.backend.api.repository.DeploymentRepository;
 import io.mockge.backend.api.repository.SchemaRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
 public class DeploymentService {
+
+    private static final Logger logger = LoggerFactory.getLogger(DeploymentService.class);
 
     private final DeploymentRepository deploymentRepository;
     private final SchemaRepository schemaRepository;
@@ -33,14 +38,29 @@ public class DeploymentService {
 
     @Transactional
     public DeploymentDto deploy(UUID schemaId, DeploySchemaRequest request) {
+        logger.info("Starting deployment for schema: {}", schemaId);
+
         SchemaEntity schema = schemaRepository.findById(schemaId)
                 .orElseThrow(() -> new IllegalArgumentException("Схема не найдена"));
+
+        logger.info("Found schema: {} with project: {}", schemaId, schema.getProject().getId());
+
+        // Очищаем все старые деплои этого проекта из Redis
+        List<DeploymentEntity> oldDeployments = deploymentRepository.findByProjectId(schema.getProject().getId());
+        for (DeploymentEntity oldDeployment : oldDeployments) {
+            logger.info("Cleaning old deployment from Redis: subdomain={}", oldDeployment.getSubdomain());
+            redisService.deleteSchema(oldDeployment.getSubdomain());
+        }
+        if (!oldDeployments.isEmpty()) {
+            logger.info("Cleaned {} old deployments from Redis", oldDeployments.size());
+        }
 
         DeploymentEntity deployment = new DeploymentEntity();
         deployment.setSchema(schema);
         deployment.setSubdomain(request.getSubdomain());
         deployment.setStatus("active");
 
+        // Устанавливаем настройки по умолчанию или из запроса
         if (request.getSettings() != null) {
             try {
                 String settingsJson = objectMapper.writeValueAsString(request.getSettings());
@@ -48,18 +68,25 @@ public class DeploymentService {
             } catch (JsonProcessingException e) {
                 throw new IllegalArgumentException("Ошибка сериализации настроек", e);
             }
+        } else {
+            // Пустые настройки по умолчанию
+            deployment.setSettings("{}");
         }
 
         deploymentRepository.save(deployment);
+        logger.info("Deployment saved to database: {}", deployment.getId());
 
         // Публикуем схему в Redis для прокси-сервера
         try {
             Object schemaJson = objectMapper.readValue(schema.getSchemaJson(), Object.class);
+            logger.info("Publishing schema to Redis for subdomain: {}", request.getSubdomain());
             redisService.publishSchema(request.getSubdomain(), schemaJson);
         } catch (JsonProcessingException e) {
+            logger.error("Ошибка публикации схемы в Redis", e);
             throw new IllegalArgumentException("Ошибка публикации схемы в Redis", e);
         }
 
+        logger.info("Deployment completed successfully for schema: {}", schemaId);
         return toDto(deployment);
     }
 

@@ -9,6 +9,8 @@ import io.mockge.backend.api.service.DeploymentService;
 import io.mockge.backend.api.service.SchemaService;
 import io.mockge.backend.api.service.UserService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -20,6 +22,8 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api")
 public class SchemaController {
+
+    private static final Logger logger = LoggerFactory.getLogger(SchemaController.class);
 
     private final SchemaService schemaService;
     private final DeploymentService deploymentService;
@@ -39,9 +43,25 @@ public class SchemaController {
         if (userDetails == null) {
             return ResponseEntity.status(401).build();
         }
-        UserEntity user = userService.findByEmail(userDetails.getUsername());
-        SchemaDto schema = schemaService.create(projectId, request, user.getId());
-        return ResponseEntity.ok(schema);
+        try {
+            String username = userDetails.getUsername();
+            logger.info("Creating schema for user: {}", username);
+            // Ищем пользователя по clerk_id, так как email может быть в любом формате
+            UserEntity user = userService.findByClerkIdOrEmail(username);
+            if (user == null) {
+                logger.error("User not found: {}", username);
+                return ResponseEntity.status(404).build();
+            }
+            logger.info("Found user: {} with id: {}", user.getEmail(), user.getId());
+            SchemaDto schema = schemaService.create(projectId, request, user.getId());
+            return ResponseEntity.ok(schema);
+        } catch (IllegalArgumentException e) {
+            logger.error("Bad request: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            logger.error("Ошибка при создании схемы", e);
+            return ResponseEntity.status(500).build();
+        }
     }
 
     @GetMapping("/projects/{projectId}/schemas")
@@ -63,6 +83,9 @@ public class SchemaController {
             return ResponseEntity.status(401).build();
         }
         SchemaDto schema = schemaService.findActiveByProjectId(projectId);
+        if (schema == null) {
+            return ResponseEntity.status(404).build();
+        }
         return ResponseEntity.ok(schema);
     }
 

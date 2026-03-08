@@ -1,26 +1,107 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Editor } from '../components/editor/Editor';
 import { useSchemaStore } from '../store/schemaStore';
 import { schemaApi } from '../api/schema';
+import { useAuth } from '../hooks/useAuth';
 
 export function EditorPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getSchemaJson, reset } = useSchemaStore();
+  const { getSchemaJson, setNodes, setEdges, reset } = useSchemaStore();
+  const { getToken } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [schemaName, setSchemaName] = useState('Schema v1');
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Загрузка схемы при монтировании
+  useEffect(() => {
+    const loadSchema = async () => {
+      if (!id) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const token = await getToken();
+        if (!token) {
+          console.error('[EditorPage] Failed to get auth token');
+          setIsLoading(false);
+          return;
+        }
+
+        // Пытаемся загрузить активную схему
+        const activeSchema = await schemaApi.getActiveSchema(id, token);
+        
+        if (activeSchema?.schemaJson) {
+          console.log('[EditorPage] Loaded active schema:', activeSchema);
+          const { entities, relations } = activeSchema.schemaJson as { entities: unknown[], relations: unknown[] };
+          
+          // Восстанавливаем ноды из entities
+          const nodes = (entities || []).map((entity: any) => ({
+            id: entity.id || `node-${Date.now()}-${Math.random()}`,
+            type: 'entityNode',
+            position: entity.position || { x: 0, y: 0 },
+            data: {
+              label: entity.name || 'Entity',
+              fields: Array.isArray(entity.fields) ? entity.fields : [],
+            },
+          }));
+
+          // Восстанавливаем связи из relations
+          const edges = (relations || []).map((relation: any, index: number) => ({
+            id: `edge-${index}`,
+            source: relation.source,
+            target: relation.target,
+            sourceHandle: relation.type === 'manyToMany' || relation.type === 'oneToMany' ? 'many' : 'one',
+            targetHandle: relation.type === 'manyToOne' || relation.type === 'manyToMany' ? 'many' : 'one',
+          }));
+
+          setNodes(nodes);
+          setEdges(edges);
+          setSchemaName(activeSchema.name || 'Schema v1');
+        } else {
+          // Активная схема не найдена — начинаем с пустого редактора
+          console.log('[EditorPage] No active schema found, starting with empty editor');
+        }
+      } catch (error: any) {
+        // Игнорируем 404 — это нормально, когда нет активной схемы
+        if (error?.response?.status !== 404) {
+          console.error('[EditorPage] Error loading schema:', error);
+        } else {
+          console.log('[EditorPage] No active schema found (404)');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSchema();
+  }, [id]); // Убрали getToken, setNodes, setEdges из зависимостей
 
   const handleSave = async () => {
     if (!id) return;
 
     setIsSaving(true);
     try {
+      const token = await getToken();
+      if (!token) {
+        alert('Ошибка авторизации: токен не получен');
+        setIsSaving(false);
+        return;
+      }
       const schemaJson = getSchemaJson();
-      await schemaApi.createSchema(id, {
+      console.log('[EditorPage] Saving schema:', {
+        projectId: id,
         name: schemaName,
         schemaJson,
       });
+      const savedSchema = await schemaApi.createSchema(id, {
+        name: schemaName,
+        schemaJson,
+      }, token);
+      // Активируем схему после сохранения
+      await schemaApi.activateSchema(savedSchema.id, token);
       alert('Схема сохранена успешно!');
     } catch (error) {
       console.error('Ошибка сохранения схемы:', error);
@@ -34,15 +115,23 @@ export function EditorPage() {
     if (!id) return;
 
     try {
+      const token = await getToken();
+      if (!token) {
+        alert('Ошибка авторизации: токен не получен');
+        return;
+      }
       // Сначала сохраняем схему
       const schemaJson = getSchemaJson();
-      const response = await schemaApi.createSchema(id, {
+      const savedSchema = await schemaApi.createSchema(id, {
         name: schemaName,
         schemaJson,
-      });
+      }, token);
+
+      // Активируем схему
+      await schemaApi.activateSchema(savedSchema.id, token);
 
       // Затем деплоим
-      await schemaApi.deploySchema(response.id);
+      await schemaApi.deploySchema(savedSchema.id, token);
       alert('Мок-сервер успешно задеплоен!');
     } catch (error) {
       console.error('Ошибка деплоя:', error);
@@ -55,6 +144,14 @@ export function EditorPage() {
       reset();
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col">

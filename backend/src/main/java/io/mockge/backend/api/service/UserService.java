@@ -45,4 +45,15 @@ public class UserService implements UserDetailsService {
         return userRepository.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден: " + id));
     }
+
+    @Transactional(readOnly = true)
+    public UserEntity findByClerkIdOrEmail(String clerkIdOrEmail) {
+        // Сначала ищем по clerk_id
+        UserEntity user = userRepository.findByClerkId(clerkIdOrEmail).orElse(null);
+        if (user != null) {
+            return user;
+        }
+        // Если не нашли, ищем по email
+        return userRepository.findByEmail(clerkIdOrEmail).orElse(null);
+    }
 }

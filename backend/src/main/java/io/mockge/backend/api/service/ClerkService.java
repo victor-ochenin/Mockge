@@ -70,11 +70,14 @@ public class ClerkService {
      * Извлекает email из claims токена Clerk
      */
     public String extractEmail(Claims claims) {
-        // Clerk хранит email в поле "email" или "sub"
+        // Clerk хранит email в поле "email"
         String email = claims.get("email", String.class);
+        
+        // Если email нет в claims, используем sub (Clerk user ID)
         if (email == null) {
             email = claims.getSubject();
         }
+        
         return email;
     }
 

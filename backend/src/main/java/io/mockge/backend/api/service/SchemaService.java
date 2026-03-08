@@ -55,10 +55,8 @@ public class SchemaService {
 
         UserEntity user = userService.findById(userId);
 
-        // Получаем следующую версию
-        int nextVersion = schemaRepository.findByProjectIdAndIsActive(projectId, true)
-                .map(s -> s.getVersion() + 1)
-                .orElse(1);
+        // Получаем следующую версию как максимальную + 1
+        int nextVersion = schemaRepository.findMaxVersionByProjectId(projectId) + 1;
 
         SchemaEntity schema = new SchemaEntity();
         schema.setProject(project);
@@ -99,6 +97,9 @@ public class SchemaService {
         schema.setIsActive(true);
         schemaRepository.save(schema);
 
+        // Удаляем старые неактивные схемы этого проекта
+        schemaRepository.deleteInactiveByProjectId(schema.getProject().getId());
+
         return toDto(schema);
     }
 
@@ -106,7 +107,7 @@ public class SchemaService {
     public SchemaDto findActiveByProjectId(UUID projectId) {
         return schemaRepository.findByProjectIdAndIsActive(projectId, true)
                 .map(this::toDto)
-                .orElseThrow(() -> new IllegalArgumentException("Активная схема не найдена"));
+                .orElse(null);
     }
 
     private SchemaDto toDto(SchemaEntity schema) {

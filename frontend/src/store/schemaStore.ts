@@ -34,6 +34,9 @@ export interface SchemaState {
   deleteFieldFromNode: (nodeId: string, fieldId: string) => void;
   getSchemaJson: () => Record<string, unknown>;
   reset: () => void;
+  // Методы для загрузки схемы из базы
+  setNodes: (nodes: Node[]) => void;
+  setEdges: (edges: Edge[]) => void;
 }
 
 const initialNodeData = {
@@ -54,9 +57,30 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
 
   updateNode: (nodeId: string, data: Record<string, unknown>) => {
     set((state) => ({
-      nodes: state.nodes.map((node) =>
-        node.id === nodeId ? { ...node, data: { ...node.data, ...data } } : node
-      ),
+      nodes: state.nodes.map((node) => {
+        if (node.id === nodeId) {
+          // Проверяем, есть ли position в данных для обновления
+          const updates = { ...data };
+          const position = updates.position as { x: number; y: number } | undefined;
+          
+          // Если есть position, обновляем его на верхнем уровне
+          if (position) {
+            delete updates.position;
+            return {
+              ...node,
+              position,
+              data: { ...node.data, ...updates },
+            };
+          }
+          
+          // Иначе обновляем только data
+          return {
+            ...node,
+            data: { ...node.data, ...updates },
+          };
+        }
+        return node;
+      }),
     }));
   },
 
@@ -171,5 +195,13 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
       edges: [],
       selectedNodeId: null,
     });
+  },
+
+  setNodes: (nodes: Node[]) => {
+    set({ nodes });
+  },
+
+  setEdges: (edges: Edge[]) => {
+    set({ edges });
   },
 }));

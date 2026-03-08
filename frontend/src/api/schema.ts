@@ -1,4 +1,4 @@
-import api from './client';
+import api, { setAuthToken } from './client';
 
 export interface CreateSchemaRequest {
   name: string;
@@ -16,43 +16,63 @@ export interface Schema {
 }
 
 export const schemaApi = {
-  getSchemas: async (projectId: string): Promise<Schema[]> => {
-    const response = await api.get(`/api/projects/${projectId}/schemas`);
+  getSchemas: async (projectId: string, token: string): Promise<Schema[]> => {
+    setAuthToken(token);
+    const response = await api.get(`/projects/${projectId}/schemas`);
     return response.data;
   },
 
-  getSchema: async (schemaId: string): Promise<Schema> => {
-    const response = await api.get(`/api/schemas/${schemaId}`);
+  getActiveSchema: async (projectId: string, token: string): Promise<Schema | null> => {
+    setAuthToken(token);
+    try {
+      const response = await api.get(`/projects/${projectId}/schemas/active`);
+      return response.data;
+    } catch (error) {
+      // 404 означает, что активная схема не найдена
+      return null;
+    }
+  },
+
+  getSchema: async (schemaId: string, token: string): Promise<Schema> => {
+    setAuthToken(token);
+    const response = await api.get(`/schemas/${schemaId}`);
     return response.data;
   },
 
   createSchema: async (
     projectId: string,
-    data: CreateSchemaRequest
+    data: CreateSchemaRequest,
+    token: string
   ): Promise<Schema> => {
-    const response = await api.post(`/api/projects/${projectId}/schemas`, data);
+    setAuthToken(token);
+    const response = await api.post(`/projects/${projectId}/schemas`, data);
     return response.data;
   },
 
   updateSchema: async (
     schemaId: string,
-    data: Partial<CreateSchemaRequest>
+    data: Partial<CreateSchemaRequest>,
+    token: string
   ): Promise<Schema> => {
-    const response = await api.put(`/api/schemas/${schemaId}`, data);
+    setAuthToken(token);
+    const response = await api.put(`/schemas/${schemaId}`, data);
     return response.data;
   },
 
-  activateSchema: async (schemaId: string): Promise<void> => {
-    await api.post(`/api/schemas/${schemaId}/activate`);
+  activateSchema: async (schemaId: string, token: string): Promise<void> => {
+    setAuthToken(token);
+    await api.post(`/schemas/${schemaId}/activate`);
   },
 
-  deploySchema: async (schemaId: string): Promise<{ deploymentId: string; url: string }> => {
-    const response = await api.post(`/api/schemas/${schemaId}/deploy`);
+  deploySchema: async (schemaId: string, token: string): Promise<{ deploymentId: string; url: string }> => {
+    setAuthToken(token);
+    const response = await api.post(`/schemas/${schemaId}/deploy`);
     return response.data;
   },
 
-  exportOpenApi: async (schemaId: string): Promise<unknown> => {
-    const response = await api.get(`/api/schemas/${schemaId}/export/openapi`, {
+  exportOpenApi: async (schemaId: string, token: string): Promise<unknown> => {
+    setAuthToken(token);
+    const response = await api.get(`/schemas/${schemaId}/export/openapi`, {
       responseType: 'blob',
     });
     return response.data;
